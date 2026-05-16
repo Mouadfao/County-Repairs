@@ -50,7 +50,7 @@ export default function CommissionsPage() {
       .catch(() => {});
   }, []);
 
-  const isAdmin               = userRole === 'admin';
+  const isAdmin               = userRole === 'admin' || userRole === 'super_admin';
   const isUpsellersManager    = userRole === 'upsellers_manager';
   const isVerificationManager = userRole === 'verification_manager';
 

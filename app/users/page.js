@@ -105,6 +105,7 @@ export default function UsersPage() {
             <div>
               <label style={{ display:'block', fontSize:11, color:'#64748b', marginBottom:4, fontWeight:600 }}>ROLE</label>
               <select value={newUser.role} onChange={e=>setNewUser({...newUser,role:e.target.value})} style={inp({width:180,cursor:'pointer'})}>
+                <option value="super_admin">Super Admin</option>
                 <option value="admin">Admin</option>
                 <option value="upsellers_manager">Upsellers Manager</option>
                 <option value="verification_manager">Verification Manager</option>
@@ -150,9 +151,9 @@ export default function UsersPage() {
                     <td style={{ padding:'12px 16px', color:'#fff', fontWeight:500 }}>{u.username}</td>
                     <td style={{ padding:'12px 16px' }}>
                       <span style={{ padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:700,
-                        background: u.role==='admin'?'#4c1d95':u.role==='upsellers_manager'?'#14532d':'#1e3a8a',
-                        color: u.role==='admin'?'#c4b5fd':u.role==='upsellers_manager'?'#86efac':'#93c5fd' }}>
-                        {u.role==='admin'?'Admin':u.role==='upsellers_manager'?'Upsellers Manager':'Verification Manager'}
+                        background: u.role==='super_admin'?'#7c2d12':u.role==='admin'?'#4c1d95':u.role==='upsellers_manager'?'#14532d':'#1e3a8a',
+                        color: u.role==='super_admin'?'#fdba74':u.role==='admin'?'#c4b5fd':u.role==='upsellers_manager'?'#86efac':'#93c5fd' }}>
+                        {u.role==='super_admin'?'Super Admin':u.role==='admin'?'Admin':u.role==='upsellers_manager'?'Upsellers Manager':'Verification Manager'}
                       </span>
                     </td>
                     <td style={{ padding:'12px 16px' }}>

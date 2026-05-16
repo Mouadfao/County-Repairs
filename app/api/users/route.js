@@ -25,7 +25,7 @@ function isAdmin(request) {
     // Add padding if needed
     const padded = payloadB64 + '='.repeat((4 - payloadB64.length % 4) % 4);
     const payload = JSON.parse(Buffer.from(padded, 'base64').toString());
-    return payload.role === 'admin';
+    return payload.role === 'super_admin';
   } catch { return false; }
 }
 

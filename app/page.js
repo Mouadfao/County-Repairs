@@ -14,8 +14,10 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
-  const isAdmin               = userRole === 'admin';
+  const isSuperAdmin          = userRole === 'super_admin';
+  const isAdmin               = userRole === 'admin' || userRole === 'super_admin';
   const isVerificationManager = userRole === 'verification_manager';
+  const showUsersCard         = isSuperAdmin;
   const showStats             = !isVerificationManager;
 
   async function logout() {
@@ -69,8 +71,8 @@ export default function Home() {
             </div>
           </Link>
 
-          {/* Users — admin only */}
-          {isAdmin && (
+          {/* Users — super admin only */}
+          {showUsersCard && (
             <Link href="/users" style={{ textDecoration:'none' }}>
               <div style={{ background:'#1e293b', border:'1px solid #334155', borderRadius:16, padding:'32px 24px', cursor:'pointer', textAlign:'center', transition:'all .2s' }}
                 onMouseEnter={e=>{ e.currentTarget.style.borderColor='#0891b2'; e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow='0 12px 32px rgba(8,145,178,.2)'; }}
