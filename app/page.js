@@ -8,14 +8,10 @@ export default function Home() {
   const [username, setUsername] = useState('');
 
   useEffect(() => {
-    const match = document.cookie.match(/cr_session=([^;]+)/);
-    if (match) {
-      try {
-        const payload = JSON.parse(atob(match[1].split('.')[0]));
-        setUserRole(payload.role || 'user');
-        setUsername(payload.username || '');
-      } catch {}
-    }
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(d => { if (d.role) { setUserRole(d.role); setUsername(d.username || ''); } })
+      .catch(() => {});
   }, []);
 
   const isAdmin               = userRole === 'admin';

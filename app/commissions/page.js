@@ -42,15 +42,12 @@ export default function CommissionsPage() {
   const [fCity,  setFCity]  = useState('All');
   const [fAgent, setFAgent] = useState('All');
 
-  // Read role from session cookie
+  // Get role from server
   useEffect(() => {
-    const match = document.cookie.match(/cr_session=([^;]+)/);
-    if (match) {
-      try {
-        const payload = JSON.parse(atob(match[1].split('.')[0]));
-        setUserRole(payload.role || 'admin');
-      } catch {}
-    }
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(d => { if (d.role) setUserRole(d.role); })
+      .catch(() => {});
   }, []);
 
   const isAdmin               = userRole === 'admin';
