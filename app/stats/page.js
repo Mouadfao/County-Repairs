@@ -6,20 +6,17 @@ import { Bar, Line, Doughnut } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend, Filler);
 
 // ── helpers ────────────────────────────────────────────────────────────────
-// Agents to hide from tables/leaderboard (still counted in revenue KPIs)
-const isHiddenAgent = name => /office|manager|claim\s*fee/i.test(name);
-
 const MONTH_ORDER = ['01.January','02.February','03.March','04.April','05.May','06.June',
   '07.July','08.August','09.September','10.October','11.November','12.December'];
 const shortM  = m => m.replace(/^\d+\./,'').slice(0,3);
-const sortM   = arr => [...new Set(arr)].sort((a,b)=>MONTH_ORDER.indexOf(a)-MONTH_ORDER.indexOf(b));
+const sortM   = arr => [...new Set(arr)].sort((a,b) => MONTH_ORDER.indexOf(a)-MONTH_ORDER.indexOf(b));
 const fmt     = n => { if(n===null||n===undefined) return '—'; const s=n<0?'-':''; return s+'£'+Math.abs(n).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); };
 
-// Revenue = Paid + SFDP + CB/Refunds (CB already negative → just add)
 const countsRev = r => ['Paid','SFDP','Charge Back','Admin Refund','Manual Refund'].includes(r.status);
 const isPaid    = r => r.status === 'Paid';
 const isSFDP    = r => r.status === 'SFDP';
 const isNeg     = r => ['Charge Back','Admin Refund','Manual Refund'].includes(r.status);
+const isHidden  = name => /office|manager|claim\s*fee/i.test(name);
 
 const C = { blue:'#2563eb', green:'#16a34a', red:'#dc2626', orange:'#f97316', purple:'#7c3aed', teal:'#0891b2', amber:'#d97706', slate:'#64748b' };
 const card = { background:'#fff', borderRadius:12, padding:'16px 18px', boxShadow:'0 1px 3px rgba(0,0,0,.07)' };
@@ -30,12 +27,26 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
   const [updated, setUpdated] = useState('');
-  const [debug,   setDebug]   = useState(false);
+  const [userRole, setUserRole] = useState('admin');
 
   const [fYear,   setFYear]   = useState('All');
   const [fMonth,  setFMonth]  = useState('All');
   const [fCity,   setFCity]   = useState('All');
   const [fAgent,  setFAgent]  = useState('All');
+
+  // Read role from session cookie
+  useEffect(() => {
+    const match = document.cookie.match(/cr_session=([^;]+)/);
+    if (match) {
+      try {
+        const payload = JSON.parse(atob(match[1].split('.')[0]));
+        setUserRole(payload.role || 'admin');
+      } catch {}
+    }
+  }, []);
+
+  const isUpsellersManager    = userRole === 'upsellers_manager';
+  const isVerificationManager = userRole === 'verification_manager';
 
   async function load() {
     setLoading(true); setError('');
@@ -49,7 +60,7 @@ export default function StatsPage() {
   }
   useEffect(()=>{ load(); },[]);
 
-  const { sales, targets, debugInfo } = raw;
+  const { sales, targets } = raw;
 
   // ── filter options ─────────────────────────────────────────────────────
   const years  = useMemo(()=>[...new Set(sales.map(r=>r.year).filter(Boolean))].sort().reverse(),[sales]);
@@ -57,36 +68,56 @@ export default function StatsPage() {
   const cities = useMemo(()=>[...new Set(sales.map(r=>r.city||r.office).filter(Boolean))].sort(),[sales]);
   const agents = useMemo(()=>[...new Set(sales.map(r=>r.agent).filter(Boolean))].sort(),[sales]);
 
+  // ── filtered targets ───────────────────────────────────────────────────
+  const filteredTargets = useMemo(()=>
+    targets.filter(t=>(!fYear||!t.year||t.year===fYear)&&(!fMonth||t.month===fMonth)),
+  [targets,fYear,fMonth]);
+
+  // ── Upsellers Manager: only agents whose team contains "Upsellers" ─────
+  const allowedAgents = useMemo(()=>{
+    if (!isUpsellersManager) return null; // null = no restriction
+    const names = new Set();
+    filteredTargets
+      .filter(t => t.team && t.team.toLowerCase().includes('upsellers'))
+      .forEach(t => names.add(t.agent));
+    return names;
+  }, [isUpsellersManager, filteredTargets]);
+
+  // ── filtered sales ─────────────────────────────────────────────────────
   const filtered = useMemo(()=>sales.filter(r=>
     (fYear ==='All'||r.year ===fYear)  &&
     (fMonth==='All'||r.month===fMonth) &&
     (fCity ==='All'||r.city ===fCity||r.office===fCity) &&
-    (fAgent==='All'||r.agent===fAgent)
-  ),[sales,fYear,fMonth,fCity,fAgent]);
+    (fAgent==='All'||r.agent===fAgent) &&
+    (!allowedAgents || allowedAgents.has(r.agent))
+  ),[sales,fYear,fMonth,fCity,fAgent,allowedAgents]);
 
   // ── KPIs ───────────────────────────────────────────────────────────────
-  // Net = sum of all revenue-counting rows (Paid+SFDP positive, CB/refunds already negative)
-  const netRev   = filtered.filter(countsRev).reduce((s,r)=>s+r.premium,0);
   const paidRev  = filtered.filter(isPaid).reduce((s,r)=>s+r.premium,0);
   const sfdpRev  = filtered.filter(isSFDP).reduce((s,r)=>s+r.premium,0);
   const negRev   = filtered.filter(isNeg).reduce((s,r)=>s+r.premium,0);
+  const netRev   = paidRev + sfdpRev + negRev;
   const paidCnt  = filtered.filter(isPaid).length;
   const sfdpCnt  = filtered.filter(isSFDP).length;
   const negCnt   = filtered.filter(isNeg).length;
   const avgDeal  = paidCnt>0 ? Math.round(paidRev/paidCnt) : 0;
+  const cbRate   = paidCnt>0 ? (negCnt/paidCnt*100).toFixed(1) : '0';
 
-  // ── targets ────────────────────────────────────────────────────────────
-  const filteredTargets = targets.filter(t=>
-    (fYear ==='All'||t.year ===fYear) &&
-    (fMonth==='All'||t.month===fMonth)
-  );
-  const totalTarget = filteredTargets.reduce((s,t)=>s+t.target,0);
-  const targetPct   = totalTarget>0 ? Math.round(netRev/totalTarget*100) : null;
+  const totalTarget = filteredTargets
+    .filter(t => !allowedAgents || allowedAgents.has(t.agent))
+    .reduce((s,t)=>s+t.target,0);
+  const targetPct = totalTarget>0 ? Math.round(netRev/totalTarget*100) : null;
 
   // ── monthly chart data ─────────────────────────────────────────────────
   const chartMonths = months.length>0 ? months : MONTH_ORDER;
   const monthlyData = chartMonths.map(m=>{
-    const recs = sales.filter(r=>r.month===m&&(fYear==='All'||r.year===fYear)&&(fAgent==='All'||r.agent===fAgent)&&(fCity==='All'||r.city===fCity||r.office===fCity));
+    const recs = sales.filter(r=>
+      r.month===m &&
+      (fYear==='All'||r.year===fYear) &&
+      (fAgent==='All'||r.agent===fAgent) &&
+      (fCity==='All'||r.city===fCity||r.office===fCity) &&
+      (!allowedAgents||allowedAgents.has(r.agent))
+    );
     return {
       paid: recs.filter(isPaid).reduce((s,r)=>s+r.premium,0),
       sfdp: recs.filter(isSFDP).reduce((s,r)=>s+r.premium,0),
@@ -98,14 +129,22 @@ export default function StatsPage() {
   const currentMonth = months[months.length-1];
   let prediction=null, predPct=null;
   if(currentMonth) {
-    const cm = sales.filter(r=>r.month===currentMonth&&(fYear==='All'||r.year===fYear));
+    const cm = sales.filter(r=>
+      r.month===currentMonth &&
+      (fYear==='All'||r.year===fYear) &&
+      (!allowedAgents||allowedAgents.has(r.agent))
+    );
     const dates = cm.map(r=>parseFloat(r.date)).filter(n=>!isNaN(n)&&n>40000).sort((a,b)=>a-b);
     if(dates.length>3) {
       const span=dates[dates.length-1]-dates[0]+1;
       const cmNet=cm.filter(countsRev).reduce((s,r)=>s+r.premium,0);
       if(span>0) {
         prediction=Math.round((cmNet/span)*30);
-        const cmTgt=targets.filter(t=>t.month===currentMonth&&(fYear==='All'||t.year===fYear)).reduce((s,t)=>s+t.target,0);
+        const cmTgt=targets.filter(t=>
+          t.month===currentMonth &&
+          (!fYear||!t.year||t.year===fYear) &&
+          (!allowedAgents||allowedAgents.has(t.agent))
+        ).reduce((s,t)=>s+t.target,0);
         if(cmTgt>0) predPct=Math.round(prediction/cmTgt*100);
       }
     }
@@ -113,7 +152,7 @@ export default function StatsPage() {
 
   // ── agent performance ──────────────────────────────────────────────────
   const agentMap={};
-  filtered.filter(r=>countsRev(r)&&r.agent).forEach(r=>{
+  filtered.filter(r=>countsRev(r)&&r.agent&&!isHidden(r.agent)).forEach(r=>{
     if(!agentMap[r.agent]) agentMap[r.agent]={agent:r.agent,office:r.office,city:r.city,paid:0,sfdp:0,neg:0,net:0};
     agentMap[r.agent].net+=r.premium;
     if(isPaid(r)) agentMap[r.agent].paid++;
@@ -124,20 +163,19 @@ export default function StatsPage() {
   const agentPerf=Object.values(agentMap).map(a=>{
     const tgt=filteredTargets.filter(t=>t.agent===a.agent).reduce((s,t)=>s+t.target,0);
     return {...a,target:tgt,pct:tgt>0?Math.round(a.net/tgt*100):null};
-  }).filter(a => !isHiddenAgent(a.agent)).sort((a,b)=>b.net-a.net);
+  }).sort((a,b)=>b.net-a.net);
 
   // ── office breakdown ───────────────────────────────────────────────────
   const offMap={};
   filtered.filter(countsRev).forEach(r=>{ const k=(r.city||r.office||'?').trim(); offMap[k]=(offMap[k]||0)+r.premium; });
   const offData=Object.entries(offMap).filter(([k])=>k&&k.length>1).sort((a,b)=>b[1]-a[1]);
 
-  // ── portal breakdown ───────────────────────────────────────────────────
+  // ── portal breakdown (admin only) ──────────────────────────────────────
   const portMap={};
   filtered.filter(isPaid).forEach(r=>{ const p=r.portal||'Other'; portMap[p]=(portMap[p]||0)+r.premium; });
   const portData=Object.entries(portMap).filter(([k])=>k&&k.length>1).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
-  // ── status counts for doughnut ─────────────────────────────────────────
-  const statusCount={Paid:paidCnt,SFDP:sfdpCnt,'CB/Refunds':negCnt};
+  const showPortals = !isUpsellersManager;
 
   return (
     <div style={{minHeight:'100vh',background:'#F1F5F9',fontFamily:'system-ui,sans-serif'}}>
@@ -145,7 +183,7 @@ export default function StatsPage() {
       {/* HEADER */}
       <div style={{background:'#0f172a',color:'#fff',padding:'12px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <Link href="/" style={{color:'#64748b',textDecoration:'none',fontSize:12,marginRight:4,display:'flex',alignItems:'center',gap:4}}>
+          <Link href="/" style={{color:'#64748b',textDecoration:'none',fontSize:12,display:'flex',alignItems:'center',gap:4}}>
             <span>🏢</span><span>Portal</span><span style={{margin:'0 4px'}}>/</span>
           </Link>
           <div style={{width:30,height:30,borderRadius:7,background:C.blue,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>📊</div>
@@ -154,20 +192,8 @@ export default function StatsPage() {
             <div style={{fontSize:10,opacity:.5,marginTop:1}}>{updated?`Live · ${updated}`:'Loading...'}</div>
           </div>
         </div>
-        <div style={{display:'flex',gap:8}}>
-          <button onClick={()=>setDebug(d=>!d)} style={{padding:'5px 11px',background:'transparent',border:'1px solid #334155',color:'#94a3b8',borderRadius:6,cursor:'pointer',fontSize:11}}>{debug?'Hide':'Debug'}</button>
-          <button onClick={load} style={{padding:'5px 14px',background:C.blue,color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:500}}>⟳ Refresh</button>
-        </div>
+        <button onClick={load} style={{padding:'5px 14px',background:C.blue,color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:500}}>⟳ Refresh</button>
       </div>
-
-      {/* DEBUG */}
-      {debug&&debugInfo&&(
-        <div style={{background:'#1e293b',color:'#94a3b8',padding:'10px 24px',fontSize:11,fontFamily:'monospace'}}>
-          <div><b style={{color:'#fff'}}>Data headers:</b> {(debugInfo.dataHeaders||[]).join(' | ')}</div>
-          <div><b style={{color:'#fff'}}>Sample Paid row:</b> {JSON.stringify(debugInfo.samplePaid)}</div>
-          <div><b style={{color:'#fff'}}>Totals:</b> {debugInfo.totalSales} valid sales · {debugInfo.totalTargets} targets</div>
-        </div>
-      )}
 
       <div style={{padding:'16px 24px'}}>
         {loading&&<div style={{textAlign:'center',padding:'80px',color:'#64748b'}}><div style={{fontSize:40}}>⏳</div><p>Loading data…</p></div>}
@@ -181,7 +207,7 @@ export default function StatsPage() {
             {label:'Year', val:fYear, set:setFYear, opts:['All',...years]},
             {label:'Month',val:fMonth,set:setFMonth,opts:['All',...months],display:['All',...months.map(shortM)]},
             {label:'City', val:fCity, set:setFCity, opts:['All',...cities]},
-            {label:'Agent',val:fAgent,set:setFAgent,opts:['All',...agents]},
+            {label:'Agent',val:fAgent,set:setFAgent,opts:['All',...(allowedAgents?agents.filter(a=>allowedAgents.has(a)):agents)]},
           ].map(({label,val,set,opts,display})=>(
             <label key={label} style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#64748b',fontWeight:500}}>
               {label}
@@ -196,12 +222,12 @@ export default function StatsPage() {
         {/* KPI CARDS */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,marginBottom:14}}>
           {[
-            {label:'Net Revenue',    val:fmt(netRev),    color:netRev>=0?C.green:C.red,   sub:`Paid ${fmt(paidRev)} · SFDP ${fmt(sfdpRev)}`},
-            {label:'Chargebacks',    val:fmt(negRev),    color:C.red,                      sub:`${negCnt} transactions`},
-            {label:'Paid Deals',     val:paidCnt,        color:C.blue,                     sub:`Avg deal ${fmt(avgDeal)}`},
-            {label:'SFDP Deals',     val:sfdpCnt,        color:C.teal,                     sub:fmt(sfdpRev)+' collected'},
-            {label:'Total Target',   val:fmt(totalTarget),color:C.slate,                   sub:targetPct!==null?targetPct+'% reached':'No target set'},
-            {label:'vs Target',      val:targetPct!==null?targetPct+'%':'—', color:targetPct>=100?C.green:targetPct>=70?C.amber:C.red, sub:fmt(netRev)+' net'},
+            {label:'Net Revenue',   val:fmt(netRev),    color:netRev>=0?C.green:C.red,   sub:`Paid ${fmt(paidRev)} · SFDP ${fmt(sfdpRev)}`},
+            {label:'Chargebacks',   val:fmt(negRev),    color:C.red,                      sub:`${negCnt} transactions`},
+            {label:'Chargeback Rate',val:cbRate+'%',    color:parseFloat(cbRate)>15?C.red:parseFloat(cbRate)>8?C.amber:C.green, sub:`${negCnt} CB vs ${paidCnt} paid`},
+            {label:'Avg Deal',      val:fmt(avgDeal),   color:C.purple,                   sub:'per paid sale'},
+            {label:'Total Target',  val:fmt(totalTarget),color:C.slate,                   sub:targetPct!==null?targetPct+'% reached':'No target set'},
+            {label:'vs Target',     val:targetPct!==null?targetPct+'%':'—', color:targetPct>=100?C.green:targetPct>=70?C.amber:C.red, sub:fmt(netRev)+' net'},
           ].map(({label,val,color,sub})=>(
             <div key={label} style={card}>
               <div style={{fontSize:10,color:'#94a3b8',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5}}>{label}</div>
@@ -249,7 +275,7 @@ export default function StatsPage() {
           <div style={card}>
             <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:8}}>Deal Mix</div>
             <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:10}}>
-              {[[`Paid`,paidCnt,C.green],[`SFDP`,sfdpCnt,C.teal],[`CB/Refunds`,negCnt,C.red]].map(([l,v,c])=>(
+              {[['Paid',paidCnt,C.green],['SFDP',sfdpCnt,C.teal],['CB/Refunds',negCnt,C.red]].map(([l,v,c])=>(
                 <div key={l} style={{display:'flex',alignItems:'center',gap:6}}>
                   <span style={{width:8,height:8,borderRadius:2,background:c,flexShrink:0}}/>
                   <span style={{fontSize:11,color:'#64748b',flex:1}}>{l}</span>
@@ -266,7 +292,7 @@ export default function StatsPage() {
         {/* AGENT TABLE */}
         <div style={{...card,marginBottom:14}}>
           <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:3}}>Agent Performance vs Target</div>
-          <div style={{fontSize:11,color:'#94a3b8',marginBottom:10}}>Net = Paid + SFDP + CB/Refunds (CB already negative). Target from Target_List sheet.</div>
+          <div style={{fontSize:11,color:'#94a3b8',marginBottom:10}}>Net = Paid + SFDP + CB/Refunds. Target from Target_List sheet.</div>
           <div style={{overflowX:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
               <thead>
@@ -305,7 +331,7 @@ export default function StatsPage() {
         </div>
 
         {/* CITY + PORTALS */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
+        <div style={{display:'grid',gridTemplateColumns: showPortals ? '1fr 1fr' : '1fr',gap:12,marginBottom:14}}>
           <div style={card}>
             <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:12}}>Net Revenue by City</div>
             <div style={{height:220}}>
@@ -317,12 +343,15 @@ export default function StatsPage() {
               }]}} options={{...bOpts,indexAxis:'y',scales:{x:{ticks:{callback:v=>fmt(v),font:{size:10}}},y:{ticks:{font:{size:11}},grid:{display:false}}}}} />
             </div>
           </div>
-          <div style={card}>
-            <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:12}}>Top Payment Portals</div>
-            <div style={{height:220}}>
-              <Bar data={{labels:portData.map(([k])=>k),datasets:[{data:portData.map(([,v])=>v),backgroundColor:C.teal+'99',borderColor:C.teal,borderWidth:1,borderRadius:4}]}} options={{...bOpts,scales:{x:{grid:{display:false},ticks:{font:{size:10},maxRotation:30}},y:{ticks:{callback:v=>fmt(v),font:{size:10}}}}}} />
+
+          {showPortals && (
+            <div style={card}>
+              <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:12}}>Top Payment Portals</div>
+              <div style={{height:220}}>
+                <Bar data={{labels:portData.map(([k])=>k),datasets:[{data:portData.map(([,v])=>v),backgroundColor:C.teal+'99',borderColor:C.teal,borderWidth:1,borderRadius:4}]}} options={{...bOpts,scales:{x:{grid:{display:false},ticks:{font:{size:10},maxRotation:30}},y:{ticks:{callback:v=>fmt(v),font:{size:10}}}}}} />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* LEADERBOARD */}
