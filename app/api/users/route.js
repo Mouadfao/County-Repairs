@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 const SPREADSHEET_ID = '1ci6vbrkWOHkq2k-HBhFOdOBprusA_hlw09-B1VCeZe4';
-const USERS_SPREADSHEET_ID = '10NNmxFmAfQRIsfJ4QnZayleVI0WU2dJjPPs5d3BIVus';
+const USERS_SPREADSHEET_ID = '1mkzKRLQliz5W3Hi45vPmn3fxf-EMnn4iIUpRkeZ9st8';
 
 async function getSheetsApi() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
