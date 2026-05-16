@@ -2,6 +2,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+const SKY = 'linear-gradient(rgb(40,14,1) 0%, rgb(24,38,68) 15%, rgb(90,118,159) 30%, rgb(135,161,196) 43%, rgb(193,211,230) 58%, rgb(254,249,225) 79%, rgb(247,243,240) 100%)';
+const SERIF = "'IBM Plex Serif', Georgia, serif";
+const SANS  = "'Inter', system-ui, sans-serif";
+
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -13,7 +17,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const res  = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -27,59 +31,74 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight:'100vh', background:'#0f172a', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui,sans-serif' }}>
-      <div style={{ width:'100%', maxWidth:380, padding:'0 20px' }}>
+    <div style={{ minHeight:'100vh', background:SKY, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:SANS, padding:24 }}>
 
-        {/* Logo */}
-        <div style={{ textAlign:'center', marginBottom:32 }}>
-          <div style={{ width:56, height:56, borderRadius:14, background:'linear-gradient(135deg,#2563eb,#1d4ed8)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26, margin:'0 auto 14px' }}>🏢</div>
-          <div style={{ fontSize:22, fontWeight:800, color:'#fff', letterSpacing:'-.5px' }}>County Repairs</div>
-          <div style={{ fontSize:13, color:'#64748b', marginTop:4 }}>Internal Operations Portal</div>
+      <div style={{ width:'100%', maxWidth:400 }}>
+
+        {/* Header */}
+        <div style={{ textAlign:'center', marginBottom:40 }}>
+          <div style={{ fontFamily:SERIF, fontSize:42, fontWeight:400, color:'#0c1018', letterSpacing:'-0.84px', lineHeight:1.05, marginBottom:8 }}>
+            County Repairs
+          </div>
+          <div style={{ fontSize:13, color:'#6d7074', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:400 }}>
+            Internal Operations Portal
+          </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleLogin} style={{ background:'#1e293b', border:'1px solid #334155', borderRadius:16, padding:28 }}>
-          <div style={{ marginBottom:16 }}>
-            <label style={{ display:'block', fontSize:12, fontWeight:600, color:'#94a3b8', marginBottom:6, textTransform:'uppercase', letterSpacing:'.05em' }}>Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              required
-              style={{ width:'100%', padding:'10px 12px', background:'#0f172a', border:'1px solid #334155', borderRadius:8, color:'#fff', fontSize:14, outline:'none', boxSizing:'border-box' }}
-            />
-          </div>
+        {/* Card */}
+        <div style={{ background:'#fff', borderRadius:16, padding:'40px 36px', boxShadow:'0 4px 32px rgba(12,16,24,.08), 0 1px 4px rgba(12,16,24,.04)' }}>
 
-          <div style={{ marginBottom:20 }}>
-            <label style={{ display:'block', fontSize:12, fontWeight:600, color:'#94a3b8', marginBottom:6, textTransform:'uppercase', letterSpacing:'.05em' }}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-              style={{ width:'100%', padding:'10px 12px', background:'#0f172a', border:'1px solid #334155', borderRadius:8, color:'#fff', fontSize:14, outline:'none', boxSizing:'border-box' }}
-            />
-          </div>
-
-          {error && (
-            <div style={{ background:'#450a0a', border:'1px solid #7f1d1d', borderRadius:8, padding:'10px 12px', color:'#fca5a5', fontSize:13, marginBottom:16 }}>
-              {error}
+          <form onSubmit={handleLogin}>
+            {/* Username */}
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:'block', fontSize:11, fontWeight:500, color:'#9e9fa3', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>
+                Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={e=>setUsername(e.target.value)}
+                placeholder="Enter your username"
+                required
+                style={{ width:'100%', padding:'14px 20px', background:'rgba(153,161,175,.06)', border:'1px solid rgba(153,161,175,.2)', borderRadius:50, color:'#0c1018', fontSize:15, fontFamily:SANS, outline:'none', boxSizing:'border-box', letterSpacing:'-0.15px' }}
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{ width:'100%', padding:'11px', background: loading ? '#1e3a8a' : '#2563eb', color:'#fff', border:'none', borderRadius:8, fontSize:14, fontWeight:700, cursor: loading ? 'not-allowed' : 'pointer', transition:'background .2s' }}
-          >
-            {loading ? 'Signing in…' : 'Sign In'}
-          </button>
-        </form>
+            {/* Password */}
+            <div style={{ marginBottom:24 }}>
+              <label style={{ display:'block', fontSize:11, fontWeight:500, color:'#9e9fa3', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e=>setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                style={{ width:'100%', padding:'14px 20px', background:'rgba(153,161,175,.06)', border:'1px solid rgba(153,161,175,.2)', borderRadius:50, color:'#0c1018', fontSize:15, fontFamily:SANS, outline:'none', boxSizing:'border-box', letterSpacing:'-0.15px' }}
+              />
+            </div>
 
-        <div style={{ textAlign:'center', marginTop:20, fontSize:12, color:'#334155' }}>
-          County Repairs · Secure Access
+            {/* Error */}
+            {error && (
+              <div style={{ background:'#fef2f2', border:'1px solid rgba(228,108,68,.3)', borderRadius:8, padding:'10px 16px', color:'#c1121f', fontSize:13, marginBottom:16, letterSpacing:'-0.1px' }}>
+                {error}
+              </div>
+            )}
+
+            {/* Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              style={{ width:'100%', padding:'14px 24px', background: loading ? 'rgba(153,161,175,.1)' : '#0c1018', color: loading ? '#9e9fa3' : '#fff', border:'none', borderRadius:90, fontSize:14, fontFamily:SANS, fontWeight:500, cursor: loading?'not-allowed':'pointer', letterSpacing:'-0.14px', transition:'all .2s' }}
+            >
+              {loading ? 'Signing in…' : 'Sign In'}
+            </button>
+          </form>
+        </div>
+
+        <div style={{ textAlign:'center', marginTop:24, fontSize:11, color:'rgba(12,16,24,.35)', letterSpacing:'0.06em', textTransform:'uppercase' }}>
+          Secure Access · County Repairs
         </div>
       </div>
     </div>

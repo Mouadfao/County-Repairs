@@ -18,8 +18,11 @@ const isSFDP    = r => r.status === 'SFDP';
 const isNeg     = r => ['Charge Back','Admin Refund','Manual Refund'].includes(r.status);
 const isHidden  = name => /office|manager|claim\s*fee/i.test(name);
 
-const C = { blue:'#2563eb', green:'#16a34a', red:'#dc2626', orange:'#f97316', purple:'#7c3aed', teal:'#0891b2', amber:'#d97706', slate:'#64748b' };
-const card = { background:'#fff', borderRadius:12, padding:'16px 18px', boxShadow:'0 1px 3px rgba(0,0,0,.07)' };
+const SERIF = "'IBM Plex Serif', Georgia, serif";
+const SANS  = "'Inter', system-ui, sans-serif";
+const BG    = '#f4f0eb';
+const C = { blue:'#1d3557', green:'#2d6a4f', red:'#c1121f', orange:'#e46c44', purple:'#5c4b8a', teal:'#457b9d', amber:'#e76f51', slate:'#6d7074' };
+const card = { background:'#fff', borderRadius:16, padding:'20px 24px', boxShadow:'0 1px 4px rgba(12,16,24,.06), 0 4px 16px rgba(12,16,24,.04)', border:'1px solid rgba(153,161,175,.12)', fontFamily:SANS };
 const bOpts = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } };
 
 export default function StatsPage() {
@@ -175,40 +178,36 @@ export default function StatsPage() {
   const showPortals = !isUpsellersManager;
 
   return (
-    <div style={{minHeight:'100vh',background:'#F1F5F9',fontFamily:'system-ui,sans-serif'}}>
+    <div style={{minHeight:'100vh',background:BG,fontFamily:SANS}}>
 
       {/* HEADER */}
-      <div style={{background:'#0f172a',color:'#fff',padding:'12px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
-        <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <Link href="/" style={{color:'#64748b',textDecoration:'none',fontSize:12,display:'flex',alignItems:'center',gap:4}}>
-            <span>🏢</span><span>Portal</span><span style={{margin:'0 4px'}}>/</span>
-          </Link>
-          <div style={{width:30,height:30,borderRadius:7,background:C.blue,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>📊</div>
-          <div>
-            <div style={{fontSize:16,fontWeight:700}}>County Repairs — Sales Stats</div>
-            <div style={{fontSize:10,opacity:.5,marginTop:1}}>{updated?`Live · ${updated}`:'Loading...'}</div>
-          </div>
+      <div style={{background:'rgba(247,243,240,.92)',backdropFilter:'blur(12px)',borderBottom:'1px solid rgba(153,161,175,.15)',padding:'14px 28px',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8,position:'sticky',top:0,zIndex:20}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <Link href="/" style={{color:'#9e9fa3',textDecoration:'none',fontSize:12,fontFamily:SANS}}>← Portal</Link>
+          <span style={{color:'rgba(153,161,175,.4)',fontSize:12}}>/</span>
+          <span style={{fontFamily:SERIF,fontSize:18,fontWeight:400,color:'#0c1018',letterSpacing:'-0.36px'}}>Sales Stats</span>
+          {updated && <span style={{fontSize:11,color:'#9e9fa3',marginLeft:4}}>· {updated}</span>}
         </div>
-        <button onClick={load} style={{padding:'5px 14px',background:C.blue,color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:500}}>⟳ Refresh</button>
+        <button onClick={load} style={{padding:'7px 20px',background:'#0c1018',color:'#fff',border:'none',borderRadius:90,cursor:'pointer',fontSize:12,fontFamily:SANS,fontWeight:500,letterSpacing:'-0.12px'}}>⟳ Refresh</button>
       </div>
 
       <div style={{padding:'16px 24px'}}>
-        {loading&&<div style={{textAlign:'center',padding:'80px',color:'#64748b'}}><div style={{fontSize:40}}>⏳</div><p>Loading data…</p></div>}
-        {error&&<div style={{background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:10,padding:14,color:C.red,fontSize:13}}><b>Error:</b> {error}</div>}
+        {loading&&<div style={{textAlign:'center',padding:'80px',color:'#9e9fa3',fontFamily:SANS}}><div style={{fontSize:32,marginBottom:12,opacity:.4}}>◌</div><p style={{fontSize:13,letterSpacing:'-0.13px'}}>Loading data…</p></div>}
+        {error&&<div style={{background:'#fef2f2',border:'1px solid rgba(193,18,31,.15)',borderRadius:12,padding:14,color:C.red,fontSize:13,fontFamily:SANS}}><b>Error:</b> {error}</div>}
 
         {!loading&&!error&&(<>
 
         {/* FILTERS */}
-        <div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap',alignItems:'center',background:'#fff',padding:'10px 14px',borderRadius:10,boxShadow:'0 1px 3px rgba(0,0,0,.06)'}}>
+        <div style={{display:'flex',gap:8,marginBottom:20,flexWrap:'wrap',alignItems:'center',background:'#fff',padding:'12px 16px',borderRadius:12,boxShadow:'0 1px 4px rgba(12,16,24,.06)',border:'1px solid rgba(153,161,175,.12)',fontFamily:SANS}}>
           {[
             {label:'Year', val:fYear, set:setFYear, opts:['All',...years]},
             {label:'Month',val:fMonth,set:setFMonth,opts:['All',...months],display:['All',...months.map(shortM)]},
             {label:'City', val:fCity, set:setFCity, opts:['All',...cities]},
             {label:'Agent',val:fAgent,set:setFAgent,opts:['All',...(allowedAgents?agents.filter(a=>allowedAgents.has(a)):agents)]},
           ].map(({label,val,set,opts,display})=>(
-            <label key={label} style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#64748b',fontWeight:500}}>
+            <label key={label} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'#9e9fa3',fontWeight:500,letterSpacing:'0.04em',textTransform:'uppercase'}}>
               {label}
-              <select value={val} onChange={e=>set(e.target.value)} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,background:'#fff',cursor:'pointer',minWidth:80}}>
+              <select value={val} onChange={e=>set(e.target.value)} style={{padding:'5px 10px',borderRadius:50,border:'1px solid rgba(153,161,175,.2)',fontSize:12,background:'rgba(153,161,175,.05)',cursor:'pointer',minWidth:80,fontFamily:SANS,color:'#0c1018',outline:'none'}}>
                 {opts.map((o,i)=><option key={o} value={o}>{display?display[i]:o}</option>)}
               </select>
             </label>
@@ -227,9 +226,9 @@ export default function StatsPage() {
             {label:'vs Target',     val:targetPct!==null?targetPct+'%':'—', color:targetPct>=100?C.green:targetPct>=70?C.amber:C.red, sub:fmt(netRev)+' net'},
           ].map(({label,val,color,sub})=>(
             <div key={label} style={card}>
-              <div style={{fontSize:10,color:'#94a3b8',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5}}>{label}</div>
-              <div style={{fontSize:22,fontWeight:800,color,lineHeight:1.1}}>{val}</div>
-              <div style={{fontSize:10,color:'#94a3b8',marginTop:4}}>{sub}</div>
+              <div style={{fontSize:10,color:'#9e9fa3',fontWeight:500,textTransform:'uppercase',letterSpacing:'.08em',marginBottom:6,fontFamily:SANS}}>{label}</div>
+              <div style={{fontSize:24,fontWeight:600,color,lineHeight:1.1,fontFamily:SERIF,letterSpacing:'-0.48px'}}>{val}</div>
+              <div style={{fontSize:11,color:'#9e9fa3',marginTop:5,letterSpacing:'-0.11px'}}>{sub}</div>
             </div>
           ))}
         </div>
@@ -252,7 +251,7 @@ export default function StatsPage() {
         {/* MONTHLY STACKED BAR + DOUGHNUT */}
         <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:12,marginBottom:14}}>
           <div style={card}>
-            <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:10}}>Monthly Revenue Breakdown</div>
+            <div style={{fontFamily:SERIF,fontSize:17,fontWeight:400,color:'#0c1018',letterSpacing:'-0.34px',marginBottom:10}}>Monthly Revenue Breakdown</div>
             <div style={{display:'flex',gap:14,marginBottom:10}}>
               {[['Paid',C.green],['SFDP',C.teal],['CB/Refunds',C.red]].map(([l,c])=>(
                 <span key={l} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#64748b'}}>
@@ -270,7 +269,7 @@ export default function StatsPage() {
           </div>
 
           <div style={card}>
-            <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:8}}>Deal Mix</div>
+            <div style={{fontFamily:SERIF,fontSize:17,fontWeight:400,color:'#0c1018',letterSpacing:'-0.34px',marginBottom:8}}>Deal Mix</div>
             <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:10}}>
               {[['Paid',paidCnt,C.green],['SFDP',sfdpCnt,C.teal],['CB/Refunds',negCnt,C.red]].map(([l,v,c])=>(
                 <div key={l} style={{display:'flex',alignItems:'center',gap:6}}>
@@ -288,14 +287,14 @@ export default function StatsPage() {
 
         {/* AGENT TABLE */}
         <div style={{...card,marginBottom:14}}>
-          <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:3}}>Agent Performance vs Target</div>
-          <div style={{fontSize:11,color:'#94a3b8',marginBottom:10}}>Net = Paid + SFDP + CB/Refunds. Target from Target_List sheet.</div>
+          <div style={{fontFamily:SERIF,fontSize:17,fontWeight:400,color:'#0c1018',letterSpacing:'-0.34px',marginBottom:3}}>Agent Performance vs Target</div>
+          <div style={{fontSize:11,color:'#9e9fa3',letterSpacing:'-0.11px',marginBottom:10}}>Net = Paid + SFDP + CB/Refunds. Target from Target_List sheet.</div>
           <div style={{overflowX:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
               <thead>
                 <tr style={{background:'#F8FAFC',borderBottom:'2px solid #e2e8f0'}}>
                   {['#','Agent','City','Paid','SFDP','CB','Net Revenue','Target','% Reached','Progress'].map(h=>(
-                    <th key={h} style={{padding:'7px 10px',textAlign:'left',color:'#64748b',fontWeight:700,whiteSpace:'nowrap',fontSize:11}}>{h}</th>
+                    <th key={h} style={{padding:'9px 12px',textAlign:'left',color:'#9e9fa3',fontWeight:500,whiteSpace:'nowrap',fontSize:10,textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid rgba(153,161,175,.15)',background:'rgba(153,161,175,.04)'}}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -304,10 +303,10 @@ export default function StatsPage() {
                   const p=a.pct;
                   const bc=p===null?C.slate:p>=100?C.green:p>=70?C.amber:C.red;
                   return (
-                    <tr key={a.agent} style={{background:i%2===0?'#fff':'#F8FAFC',borderBottom:'1px solid #f1f5f9'}}>
-                      <td style={{padding:'7px 10px',color:'#94a3b8',fontWeight:600}}>{i+1}</td>
-                      <td style={{padding:'7px 10px',fontWeight:600,color:'#1e293b'}}>{a.agent}</td>
-                      <td style={{padding:'7px 10px',color:'#64748b',fontSize:11}}>{a.city||a.office||'—'}</td>
+                    <tr key={a.agent} style={{background:'#fff',borderBottom:'1px solid rgba(153,161,175,.1)'}}>
+                      <td style={{padding:'9px 12px',color:'#9e9fa3',fontWeight:400,fontSize:12}}>{i+1}</td>
+                      <td style={{padding:'9px 12px',fontWeight:500,color:'#0c1018',fontSize:13}}>{a.agent}</td>
+                      <td style={{padding:'9px 12px',color:'#9e9fa3',fontSize:12}}>{a.city||a.office||'—'}</td>
                       <td style={{padding:'7px 10px',color:C.green,fontWeight:600}}>{a.paid}</td>
                       <td style={{padding:'7px 10px',color:C.teal}}>{a.sfdp||0}</td>
                       <td style={{padding:'7px 10px',color:C.red}}>{a.neg||0}</td>
@@ -330,7 +329,7 @@ export default function StatsPage() {
         {/* CITY + PORTALS */}
         <div style={{display:'grid',gridTemplateColumns: showPortals ? '1fr 1fr' : '1fr',gap:12,marginBottom:14}}>
           <div style={card}>
-            <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:12}}>Net Revenue by City</div>
+            <div style={{fontFamily:SERIF,fontSize:17,fontWeight:400,color:'#0c1018',letterSpacing:'-0.34px',marginBottom:12}}>Net Revenue by City</div>
             <div style={{height:220}}>
               <Bar data={{labels:offData.map(([k])=>k.length>20?k.slice(0,20)+'…':k),datasets:[{
                 data:offData.map(([,v])=>v),
@@ -343,7 +342,7 @@ export default function StatsPage() {
 
           {showPortals && (
             <div style={card}>
-              <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:12}}>Top Payment Portals</div>
+              <div style={{fontFamily:SERIF,fontSize:17,fontWeight:400,color:'#0c1018',letterSpacing:'-0.34px',marginBottom:12}}>Top Payment Portals</div>
               <div style={{height:220}}>
                 <Bar data={{labels:portData.map(([k])=>k),datasets:[{data:portData.map(([,v])=>v),backgroundColor:C.teal+'99',borderColor:C.teal,borderWidth:1,borderRadius:4}]}} options={{...bOpts,scales:{x:{grid:{display:false},ticks:{font:{size:10},maxRotation:30}},y:{ticks:{callback:v=>fmt(v),font:{size:10}}}}}} />
               </div>
@@ -353,8 +352,8 @@ export default function StatsPage() {
 
         {/* LEADERBOARD */}
         <div style={card}>
-          <div style={{fontSize:13,fontWeight:700,color:'#0f172a',marginBottom:4}}>🏆 Top 10 Leaderboard</div>
-          <div style={{fontSize:11,color:'#94a3b8',marginBottom:12}}>Ranked by net revenue. Colour = target % (green ≥100%, amber ≥70%, red below).</div>
+          <div style={{fontFamily:SERIF,fontSize:17,fontWeight:400,color:'#0c1018',letterSpacing:'-0.34px',marginBottom:4}}>🏆 Top 10 Leaderboard</div>
+          <div style={{fontSize:11,color:'#9e9fa3',letterSpacing:'-0.11px',marginBottom:12}}>Ranked by net revenue. Colour = target % (green ≥100%, amber ≥70%, red below).</div>
           <div style={{display:'flex',flexDirection:'column',gap:7}}>
             {agentPerf.slice(0,10).map((a,i)=>{
               const maxRev=Math.max(agentPerf[0]?.net||1,1);

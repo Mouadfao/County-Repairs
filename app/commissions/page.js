@@ -25,10 +25,13 @@ const commissionMAD = (revenue, pct) => {
   return revenue * rate * 12.1;
 };
 
-const C = { blue:'#2563eb', green:'#16a34a', red:'#dc2626', amber:'#d97706', purple:'#7c3aed', teal:'#0891b2', slate:'#64748b' };
-const card  = { background:'#fff', borderRadius:12, padding:'16px 20px', boxShadow:'0 1px 3px rgba(0,0,0,.07)' };
-const thSt  = { padding:'9px 12px', textAlign:'left', color:'#64748b', fontWeight:700, fontSize:11, whiteSpace:'nowrap', borderBottom:'2px solid #e2e8f0', background:'#F8FAFC' };
-const tdSt  = i => ({ padding:'8px 12px', borderBottom:'1px solid #f1f5f9', background: i%2===0 ? '#fff' : '#F8FAFC', fontSize:13 });
+const SERIF = "'IBM Plex Serif', Georgia, serif";
+const SANS  = "'Inter', system-ui, sans-serif";
+const BG    = '#f4f0eb';
+const C = { blue:'#1d3557', green:'#2d6a4f', red:'#c1121f', amber:'#e76f51', purple:'#5c4b8a', teal:'#457b9d', slate:'#6d7074' };
+const card  = { background:'#fff', borderRadius:16, padding:'20px 24px', boxShadow:'0 1px 4px rgba(12,16,24,.06), 0 4px 16px rgba(12,16,24,.04)', border:'1px solid rgba(153,161,175,.12)', fontFamily:SANS };
+const thSt  = { padding:'9px 12px', textAlign:'left', color:'#9e9fa3', fontWeight:500, fontSize:10, whiteSpace:'nowrap', borderBottom:'1px solid rgba(153,161,175,.15)', background:'rgba(153,161,175,.04)', textTransform:'uppercase', letterSpacing:'.06em' };
+const tdSt  = i => ({ padding:'9px 12px', borderBottom:'1px solid rgba(153,161,175,.08)', background:'#fff', fontSize:13, fontFamily:SANS });
 
 export default function CommissionsPage() {
   const [raw,     setRaw]     = useState({ sales:[], targets:[], verRows:[] });
@@ -180,47 +183,43 @@ export default function CommissionsPage() {
   const verTableTitle = isAdmin ? '🔍 Verification Agents Commission' : '🔍 Verification Agents Stats';
 
   return (
-    <div style={{ minHeight:'100vh', background:'#F1F5F9', fontFamily:'system-ui,sans-serif' }}>
+    <div style={{ minHeight:'100vh', background:BG, fontFamily:SANS }}>
 
       {/* HEADER */}
-      <div style={{ background:'#0f172a', color:'#fff', padding:'12px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <Link href="/" style={{ color:'#64748b', textDecoration:'none', fontSize:12, display:'flex', alignItems:'center', gap:4 }}>
-            <span>🏢</span><span>Portal</span><span style={{ margin:'0 4px' }}>/</span>
-          </Link>
-          <div style={{ width:30, height:30, borderRadius:7, background:C.purple, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>💰</div>
-          <div>
-            <div style={{ fontSize:16, fontWeight:700 }}>County Repairs — Commissions</div>
-            <div style={{ fontSize:10, opacity:.5, marginTop:1 }}>{updated ? `Live · ${updated}` : 'Loading...'}</div>
-          </div>
+      <div style={{ background:'rgba(247,243,240,.92)', backdropFilter:'blur(12px)', borderBottom:'1px solid rgba(153,161,175,.15)', padding:'14px 28px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8, position:'sticky', top:0, zIndex:20 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <Link href="/" style={{ color:'#9e9fa3', textDecoration:'none', fontSize:12, fontFamily:SANS }}>← Portal</Link>
+          <span style={{ color:'rgba(153,161,175,.4)', fontSize:12 }}>/</span>
+          <span style={{ fontFamily:SERIF, fontSize:18, fontWeight:400, color:'#0c1018', letterSpacing:'-0.36px' }}>Commissions</span>
+          {updated && <span style={{ fontSize:11, color:'#9e9fa3', marginLeft:4 }}>· {updated}</span>}
         </div>
-        <button onClick={load} style={{ padding:'5px 14px', background:C.purple, color:'#fff', border:'none', borderRadius:6, cursor:'pointer', fontSize:12, fontWeight:500 }}>⟳ Refresh</button>
+        <button onClick={load} style={{ padding:'7px 20px', background:'#0c1018', color:'#fff', border:'none', borderRadius:90, cursor:'pointer', fontSize:12, fontFamily:SANS, fontWeight:500 }}>⟳ Refresh</button>
       </div>
 
       <div style={{ padding:'16px 24px' }}>
 
-        {loading && <div style={{ textAlign:'center', padding:'80px', color:'#64748b' }}><div style={{ fontSize:40 }}>⏳</div><p>Loading…</p></div>}
+        {loading && <div style={{ textAlign:'center', padding:'80px', color:'#9e9fa3', fontFamily:SANS }}><div style={{ fontSize:32, marginBottom:12, opacity:.4 }}>◌</div><p style={{ fontSize:13 }}>Loading…</p></div>}
         {error   && <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:14, color:C.red, fontSize:13 }}><b>Error:</b> {error}</div>}
 
         {!loading && !error && (<>
 
         {/* FILTERS */}
-        <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap', alignItems:'center', background:'#fff', padding:'10px 14px', borderRadius:10, boxShadow:'0 1px 3px rgba(0,0,0,.06)' }}>
+        <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap', alignItems:'center', background:'#fff', padding:'12px 16px', borderRadius:12, boxShadow:'0 1px 4px rgba(12,16,24,.06)', border:'1px solid rgba(153,161,175,.12)', fontFamily:SANS }}>
           <span style={{ fontSize:12, color:C.red, fontWeight:600 }}>⚠ Year and Month required</span>
 
-          <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color:'#64748b', fontWeight:500 }}>
+          <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'#9e9fa3', fontWeight:500, letterSpacing:'0.04em', textTransform:'uppercase' }}>
             Year
             <select value={fYear} onChange={e => { setFYear(e.target.value); setFMonth(''); }}
-              style={{ padding:'4px 7px', borderRadius:6, border:`1.5px solid ${!fYear?C.red:'#e2e8f0'}`, fontSize:12, background:'#fff', cursor:'pointer', minWidth:80 }}>
+              style={{ padding:'5px 10px', borderRadius:50, border:`1.5px solid ${!fYear?C.red:'rgba(153,161,175,.2)'}`, fontSize:12, background:'rgba(153,161,175,.05)', cursor:'pointer', minWidth:80, fontFamily:SANS, color:'#0c1018', outline:'none' }}>
               <option value="">— select —</option>
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </label>
 
-          <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color:'#64748b', fontWeight:500 }}>
+          <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'#9e9fa3', fontWeight:500, letterSpacing:'0.04em', textTransform:'uppercase' }}>
             Month
             <select value={fMonth} onChange={e => setFMonth(e.target.value)}
-              style={{ padding:'4px 7px', borderRadius:6, border:`1.5px solid ${!fMonth?C.red:'#e2e8f0'}`, fontSize:12, background:'#fff', cursor:'pointer', minWidth:90 }}>
+              style={{ padding:'5px 10px', borderRadius:50, border:`1.5px solid ${!fMonth?C.red:'rgba(153,161,175,.2)'}`, fontSize:12, background:'rgba(153,161,175,.05)', cursor:'pointer', minWidth:90, fontFamily:SANS, color:'#0c1018', outline:'none' }}>
               <option value="">— select —</option>
               {months.map(m => <option key={m} value={m}>{shortM(m)}</option>)}
             </select>
@@ -228,17 +227,17 @@ export default function CommissionsPage() {
 
           {!isVerificationManager && (
             <>
-              <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color:'#64748b', fontWeight:500 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'#9e9fa3', fontWeight:500, letterSpacing:'0.04em', textTransform:'uppercase' }}>
                 City
                 <select value={fCity} onChange={e => setFCity(e.target.value)}
-                  style={{ padding:'4px 7px', borderRadius:6, border:'1px solid #e2e8f0', fontSize:12, background:'#fff', cursor:'pointer', minWidth:80 }}>
+                  style={{ padding:'5px 10px', borderRadius:50, border:'1px solid rgba(153,161,175,.2)', fontSize:12, background:'rgba(153,161,175,.05)', cursor:'pointer', minWidth:80, fontFamily:SANS, color:'#0c1018', outline:'none' }}>
                   {['All',...cities].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </label>
-              <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color:'#64748b', fontWeight:500 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'#9e9fa3', fontWeight:500, letterSpacing:'0.04em', textTransform:'uppercase' }}>
                 Agent
                 <select value={fAgent} onChange={e => setFAgent(e.target.value)}
-                  style={{ padding:'4px 7px', borderRadius:6, border:'1px solid #e2e8f0', fontSize:12, background:'#fff', cursor:'pointer', minWidth:120 }}>
+                  style={{ padding:'5px 10px', borderRadius:50, border:'1px solid rgba(153,161,175,.2)', fontSize:12, background:'rgba(153,161,175,.05)', cursor:'pointer', minWidth:120, fontFamily:SANS, color:'#0c1018', outline:'none' }}>
                   {['All',...(allowedAgents ? agents.filter(a=>allowedAgents.has(a)) : agents)].map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </label>
@@ -251,7 +250,7 @@ export default function CommissionsPage() {
         </div>
 
         {(!fYear || !fMonth) && (
-          <div style={{ background:'#FFF7ED', border:'1px solid #FED7AA', borderRadius:10, padding:'16px 20px', color:'#9a3412', fontSize:13, marginBottom:16 }}>
+          <div style={{ background:'rgba(231,111,81,.06)', border:'1px solid rgba(231,111,81,.2)', borderRadius:12, padding:'14px 20px', color:'#9a3412', fontSize:13, marginBottom:16, fontFamily:SANS }}>
             👆 Please select a <strong>Year</strong> and <strong>Month</strong> to view commissions.
           </div>
         )}
@@ -261,11 +260,11 @@ export default function CommissionsPage() {
         {/* SUMMARY CARDS — not shown to verification manager */}
         {showTopCards && (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:10, marginBottom:16 }}>
-            {showUpsellTotalCard && <div style={card}><div style={{ fontSize:10, color:'#94a3b8', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:5 }}>Total Upseller Commissions</div><div style={{ fontSize:22, fontWeight:800, color:C.blue }}>{fmtMAD(totalUpsellComm)}</div></div>}
-            {showVerTotalCard    && <div style={card}><div style={{ fontSize:10, color:'#94a3b8', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:5 }}>Total Verification Commissions</div><div style={{ fontSize:22, fontWeight:800, color:C.teal }}>{fmtMAD(totalVerComm)}</div></div>}
-            {isAdmin             && <div style={card}><div style={{ fontSize:10, color:'#94a3b8', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:5 }}>Total Commissions</div><div style={{ fontSize:22, fontWeight:800, color:C.purple }}>{fmtMAD(totalUpsellComm+totalVerComm)}</div></div>}
-            {showUpsellTotalCard && <div style={card}><div style={{ fontSize:10, color:'#94a3b8', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:5 }}>Agents Paid</div><div style={{ fontSize:22, fontWeight:800, color:C.green }}>{upsellers.length}</div></div>}
-            <div style={card}><div style={{ fontSize:10, color:'#94a3b8', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:5 }}>Verification Agents</div><div style={{ fontSize:22, fontWeight:800, color:C.amber }}>{verAgents.length}</div></div>
+            {showUpsellTotalCard && <div style={card}><div style={{ fontSize:10, color:'#9e9fa3', fontWeight:500, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:6, fontFamily:SANS }}>Total Upseller Commissions</div><div style={{ fontFamily:SERIF, fontSize:22, fontWeight:400, color:C.blue, letterSpacing:'-0.44px' }}>{fmtMAD(totalUpsellComm)}</div></div>}
+            {showVerTotalCard    && <div style={card}><div style={{ fontSize:10, color:'#9e9fa3', fontWeight:500, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:6, fontFamily:SANS }}>Total Verification Commissions</div><div style={{ fontFamily:SERIF, fontSize:22, fontWeight:400, color:C.teal, letterSpacing:'-0.44px' }}>{fmtMAD(totalVerComm)}</div></div>}
+            {isAdmin             && <div style={card}><div style={{ fontSize:10, color:'#9e9fa3', fontWeight:500, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:6, fontFamily:SANS }}>Total Commissions</div><div style={{ fontFamily:SERIF, fontSize:22, fontWeight:400, color:C.purple, letterSpacing:'-0.44px' }}>{fmtMAD(totalUpsellComm+totalVerComm)}</div></div>}
+            {showUpsellTotalCard && <div style={card}><div style={{ fontSize:10, color:'#9e9fa3', fontWeight:500, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:6, fontFamily:SANS }}>Agents Paid</div><div style={{ fontFamily:SERIF, fontSize:22, fontWeight:400, color:C.green, letterSpacing:'-0.44px' }}>{upsellers.length}</div></div>}
+            <div style={card}><div style={{ fontSize:10, color:'#9e9fa3', fontWeight:500, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:6, fontFamily:SANS }}>Verification Agents</div><div style={{ fontFamily:SERIF, fontSize:22, fontWeight:400, color:C.amber, letterSpacing:'-0.44px' }}>{verAgents.length}</div></div>
           </div>
         )}
 
@@ -274,8 +273,8 @@ export default function CommissionsPage() {
           <div style={{ ...card, marginBottom:20 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
               <div>
-                <div style={{ fontSize:15, fontWeight:700, color:'#0f172a' }}>💼 Upsellers Commission</div>
-                <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>
+                <div style={{ fontFamily:SERIF, fontSize:18, fontWeight:400, color:'#0c1018', letterSpacing:'-0.36px' }}>💼 Upsellers Commission</div>
+                <div style={{ fontSize:11, color:'#9e9fa3', letterSpacing:'-0.11px', marginTop:4 }}>
                   {shortM(fMonth)} {fYear} · &lt;150%: 3% · 150–200%: 4% · ≥200%: 5%
                 </div>
               </div>
@@ -330,8 +329,8 @@ export default function CommissionsPage() {
           <div style={card}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
               <div>
-                <div style={{ fontSize:15, fontWeight:700, color:'#0f172a' }}>{verTableTitle}</div>
-                <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>
+                <div style={{ fontFamily:SERIF, fontSize:18, fontWeight:400, color:'#0c1018', letterSpacing:'-0.36px' }}>{verTableTitle}</div>
+                <div style={{ fontSize:11, color:'#9e9fa3', letterSpacing:'-0.11px', marginTop:4 }}>
                   {shortM(fMonth)} {fYear} · Paid/SFDP/Scheduled=+1 · Fail=0 · CB/Refund=−1
                   {showVerCommissionCol && ' · Commission = (120 × Repitched) + (60 × Overturned) + Top Bonus'}
                 </div>
