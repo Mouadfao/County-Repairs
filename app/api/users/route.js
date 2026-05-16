@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 const SPREADSHEET_ID = '1ci6vbrkWOHkq2k-HBhFOdOBprusA_hlw09-B1VCeZe4';
+const USERS_SPREADSHEET_ID = '10NNmxFmAfQRIsfJ4QnZayleVI0WU2dJjPPs5d3BIVus';
 
 async function getSheetsApi() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
@@ -35,7 +36,7 @@ export async function GET(request) {
   try {
     const api = await getSheetsApi();
     const res = await api.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: USERS_SPREADSHEET_ID,
       range: 'Users',
       valueRenderOption: 'FORMATTED_VALUE',
     });
@@ -68,7 +69,7 @@ export async function POST(request) {
 
     // Check user doesn't already exist
     const existing = await api.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: USERS_SPREADSHEET_ID,
       range: 'Users!A:A',
       valueRenderOption: 'FORMATTED_VALUE',
     });
@@ -79,7 +80,7 @@ export async function POST(request) {
 
     // Append new row
     await api.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: USERS_SPREADSHEET_ID,
       range: 'Users',
       valueInputOption: 'RAW',
       requestBody: {
@@ -102,7 +103,7 @@ export async function PATCH(request) {
     const api = await getSheetsApi();
 
     await api.spreadsheets.values.update({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: USERS_SPREADSHEET_ID,
       range: `Users!C${row}`,
       valueInputOption: 'RAW',
       requestBody: { values: [[active ? 'yes' : 'no']] },
@@ -128,7 +129,7 @@ export async function DELETE(request) {
     if (!usersSheet) return NextResponse.json({ error: 'Users sheet not found' }, { status: 404 });
 
     await api.spreadsheets.batchUpdate({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: USERS_SPREADSHEET_ID,
       requestBody: {
         requests: [{
           deleteDimension: {
