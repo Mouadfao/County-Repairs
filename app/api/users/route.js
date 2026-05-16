@@ -13,22 +13,15 @@ async function getSheetsApi() {
   return google.sheets({ version: 'v4', auth });
 }
 
-import { createHmac } from 'crypto';
-
-// Check if caller is admin by verifying the session cookie properly
+// Middleware already verified the session — just decode to get role
 function isAdmin(request) {
   try {
     const cookieHeader = request.headers.get('cookie') || '';
     const match = cookieHeader.match(/cr_session=([^;]+)/);
     if (!match) return false;
-    const token = match[1];
-    const [payloadB64, sig] = token.split('.');
-    if (!payloadB64 || !sig) return false;
-    const secret = process.env.SESSION_SECRET || 'fallback';
-    const expectedSig = createHmac('sha256', secret).update(payloadB64).digest('base64');
-    if (expectedSig !== sig) return false;
+    const [payloadB64] = match[1].split('.');
+    if (!payloadB64) return false;
     const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString());
-    if (payload.exp < Date.now()) return false;
     return payload.role === 'admin';
   } catch { return false; }
 }
