@@ -13,15 +13,17 @@ async function getSheetsApi() {
   return google.sheets({ version: 'v4', auth });
 }
 
-// Middleware already verified the session — just decode to get role
+// Middleware already verified the session — use Next.js cookies API
 function isAdmin(request) {
   try {
-    const cookieHeader = request.headers.get('cookie') || '';
-    const match = cookieHeader.match(/cr_session=([^;]+)/);
-    if (!match) return false;
-    const [payloadB64] = match[1].split('.');
+    // Try Next.js request cookies first
+    const token = request.cookies.get('cr_session')?.value;
+    if (!token) return false;
+    const [payloadB64] = token.split('.');
     if (!payloadB64) return false;
-    const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString());
+    // Add padding if needed
+    const padded = payloadB64 + '='.repeat((4 - payloadB64.length % 4) % 4);
+    const payload = JSON.parse(Buffer.from(padded, 'base64').toString());
     return payload.role === 'admin';
   } catch { return false; }
 }
