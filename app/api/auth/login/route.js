@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 
 const SPREADSHEET_ID = '1ci6vbrkWOHkq2k-HBhFOdOBprusA_hlw09-B1VCeZe4';
+const USERS_SPREADSHEET_ID = '1mkzKRLQliz5W3Hi45vPmn3fxf-EMnn4iIUpRkeZ9st8';
 
 function createToken(username, role) {
   const secret = process.env.SESSION_SECRET || 'fallback';
@@ -26,7 +27,7 @@ export async function POST(request) {
     const adminUser = process.env.ADMIN_USERNAME || 'Mouad';
     const adminPass = process.env.ADMIN_PASSWORD || 'CRAdmin@2026!';
     if (username === adminUser && password === adminPass) {
-      const token = createToken(username, 'admin');
+      const token = createToken(username, 'super_admin');
       const res = NextResponse.json({ ok: true, role: 'admin' });
       res.cookies.set('cr_session', token, {
         httpOnly: true,
@@ -44,7 +45,7 @@ export async function POST(request) {
     const api = google.sheets({ version: 'v4', auth });
 
     const res = await api.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: USERS_SPREADSHEET_ID,
       range: 'Users',
       valueRenderOption: 'FORMATTED_VALUE',
     });
