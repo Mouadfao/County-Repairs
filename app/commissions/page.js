@@ -58,8 +58,8 @@ export default function CommissionsPage() {
   const showUpsellersTable   = isAdmin || isUpsellersManager;
   const showVerTable         = isAdmin || isUpsellersManager || isVerificationManager;
   const showTopCards         = isAdmin || isUpsellersManager;
-  const showVerCommissionCol = isAdmin; // Upsellers manager and Ver manager don't see commission col in ver table
-  const showVerBonusCol      = isAdmin; // same
+  const showVerCommissionCol = isAdmin || isVerificationManager; // Ver manager sees commission
+  const showVerBonusCol      = isAdmin || isVerificationManager; // Ver manager sees bonus
   const showVerTotalCard     = isAdmin;
   const showUpsellTotalCard  = isAdmin || isUpsellersManager;
 
