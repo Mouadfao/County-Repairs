@@ -22,6 +22,13 @@ const normName = raw => str(raw).replace(/\s+UAG\s*$/i, '').trim().toLowerCase()
 const normStatus = raw => str(raw).toLowerCase();
 const isHiddenAgent = name => /office|manager|claim\s*fee/i.test(name);
 
+const STATUS_CANON = {
+  paid: 'Paid', sfdp: 'SFDP', scheduled: 'Scheduled', 'charge back': 'Charge Back',
+  'admin refund': 'Admin Refund', 'manual refund': 'Manual Refund',
+  cancelled: 'Cancelled', 'payment fail': 'Payment Fail',
+};
+const canonicalStatus = raw => STATUS_CANON[normStatus(raw)] || null;
+
 async function readRows(api, range) {
   const res = await api.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
@@ -50,19 +57,59 @@ export async function GET(request) {
     const idx = name => header.indexOf(name);
     const yearIdx = idx('Year'), monthIdx = idx('Month'), statusIdx = idx('Status'), premIdx = idx('Premium'),
           agentIdx = idx('Agent'), repIdx = idx('Repitched By'), overIdx = idx('Overturned By'),
-          teamIdx = idx('Team'), cityIdx = idx('City'), officeIdx = idx('Office');
+          teamIdx = idx('Team'), cityIdx = idx('City'), officeIdx = idx('Office'), portalIdx = idx('Paid Through');
 
     const tHeader = targetRows[0] || [];
     const tIdx = name => tHeader.indexOf(name);
     const tAgentIdx = tIdx('Agent'), tMonthIdx = tIdx('Month'), tYearIdx = tIdx('Year'),
-          tTeamIdx = tIdx('Team'), tTargetIdx = tIdx('Target');
+          tOfficeIdx = tIdx('Office'), tTeamIdx = tIdx('Team'), tCityIdx = tIdx('City'), tTargetIdx = tIdx('Target');
 
     // Years/months available for the filter dropdowns (whole dataset, not period-filtered)
     const years = [...new Set(dataRows.slice(1).map(r => r && toYear(r[yearIdx])).filter(Boolean))].sort();
     const months = [...new Set(dataRows.slice(1).map(r => r && str(r[monthIdx])).filter(Boolean))];
 
+    // --- raw sales/targets rows, for pages that need row-level granularity (e.g. stats) ---
+    const sales = [];
+    for (const r of dataRows.slice(1)) {
+      if (!r) continue;
+      const year = toYear(r[yearIdx]);
+      const month = str(r[monthIdx]);
+      if (filterYear && year !== filterYear) continue;
+      if (filterMonth && month !== filterMonth) continue;
+      const status = canonicalStatus(r[statusIdx]);
+      if (!status || status === 'Payment Fail' || status === 'Cancelled') continue;
+      const agent = normName(r[agentIdx]);
+      if (!agent) continue;
+      sales.push({
+        year, month, status,
+        premium: num(r[premIdx]),
+        office: str(r[officeIdx]),
+        agent,
+        portal: str(r[portalIdx] || ''),
+        city: str(r[cityIdx] || ''),
+      });
+    }
+    const allTargets = [];
+    for (const t of targetRows.slice(1)) {
+      if (!t) continue;
+      const rawAgent = str(t[tAgentIdx]);
+      if (!rawAgent || /\bUAG\s*$/i.test(rawAgent)) continue;
+      const target = num(t[tTargetIdx]);
+      if (target <= 0) continue;
+      const tYear = toYear(t[tYearIdx]);
+      const tMonth = str(t[tMonthIdx]);
+      if (filterYear && tYear && tYear !== filterYear) continue;
+      if (filterMonth && tMonth && tMonth !== filterMonth) continue;
+      allTargets.push({
+        agent: normName(rawAgent),
+        month: tMonth, office: str(t[tOfficeIdx]),
+        team: str(t[tTeamIdx]), target,
+        city: str(t[tCityIdx]), year: tYear,
+      });
+    }
+
     if (!filterYear || !filterMonth) {
-      return NextResponse.json({ years, months, agents: [], verifiers: [], managerBonusEarned: false });
+      return NextResponse.json({ years, months, sales, targets: allTargets, agents: [], verifiers: [], managerBonusEarned: false });
     }
 
     const rows = dataRows.slice(1).filter(r => r && str(r[yearIdx]) === filterYear && str(r[monthIdx]) === filterMonth);
@@ -167,7 +214,7 @@ export async function GET(request) {
     }
     verifiers.sort((a, b) => b.total - a.total);
 
-    return NextResponse.json({ years, months, agents, verifiers, managerBonusEarned });
+    return NextResponse.json({ years, months, sales, targets: allTargets, agents, verifiers, managerBonusEarned });
 
   } catch (err) {
     console.error('API Error:', err.message);
