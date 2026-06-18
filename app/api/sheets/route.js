@@ -1,24 +1,26 @@
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
 
-const SHEET_ID = '1ci6vbrkWOHkq2k-HBhFOdOBprusA_hlw09-B1VCeZe4';
+const SHEET_ID = '10NNmxFmAfQRIsfJ4QnZayleVI0WU2dJjPPs5d3BIVus';
 
-const str    = v => String(v ?? '').trim();
-const num    = v => { const n = parseFloat(str(v).replace(/[^\d.-]/g,'')); return isNaN(n)?0:n; };
-const toYear = v => { const m = str(v).match(/(20\d{2})/); return m?m[1]:''; };
-const normName = raw => str(raw).replace(/\s+UAG\s*$/i,'').trim().toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
-const normStatus = raw => {
-  const s = str(raw).toLowerCase();
-  if(s==='paid') return 'Paid';
-  if(s==='sfdp') return 'SFDP';
-  if(s==='scheduled') return 'Scheduled';
-  if(s==='charge back') return 'Charge Back';
-  if(s==='admin refund') return 'Admin Refund';
-  if(s==='manual refund') return 'Manual Refund';
-  if(s==='cancelled') return 'Cancelled';
-  if(s==='payment fail') return 'Payment Fail';
-  return null;
-};
+const MANAGER_NAME = 'Abdelouahab Karroum';
+const MANAGER_TEAMS = ['agadir upsellers', 'tangier upsellers'];
+const MANAGER_BONUS_MAD = 2500;
+const TOP_PERFORMER_BONUS_MAD = 500;
+const REPITCH_RATE_MAD = 120;
+const OVERTURN_RATE_MAD = 60;
+const FX_RATE = 12.1; // GBP -> MAD
+
+const REVENUE_STATUSES = ['paid', 'sfdp', 'scheduled', 'charge back', 'admin refund', 'manual refund'];
+const SUCCESS_STATUSES = ['paid', 'sfdp', 'scheduled'];
+const REVERSAL_STATUSES = ['charge back', 'admin refund', 'manual refund'];
+
+const str = v => String(v ?? '').trim();
+const num = v => { const n = parseFloat(str(v).replace(/[^\d.-]/g, '')); return isNaN(n) ? 0 : n; };
+const toYear = v => { const m = str(v).match(/(20\d{2})/); return m ? m[1] : ''; };
+const normName = raw => str(raw).replace(/\s+UAG\s*$/i, '').trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+const normStatus = raw => str(raw).toLowerCase();
+const isHiddenAgent = name => /office|manager|claim\s*fee/i.test(name);
 
 async function readRows(api, range) {
   const res = await api.spreadsheets.values.get({
@@ -32,102 +34,142 @@ async function readRows(api, range) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const filterYear  = searchParams.get('year')  || '';
+    const filterYear = searchParams.get('year') || '';
     const filterMonth = searchParams.get('month') || '';
 
     const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-    const auth = new google.auth.GoogleAuth({ credentials, scopes:['https://www.googleapis.com/auth/spreadsheets'] });
-    const api  = google.sheets({ version:'v4', auth });
+    const auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
+    const api = google.sheets({ version: 'v4', auth });
 
-    // Read Target_List and periods in parallel with first data batch
-    const [batch1, batch2, batch3, targetData, periodsA, periodsB] = await Promise.all([
-      readRows(api, 'Data!A1:W4000'),
-      readRows(api, 'Data!A4001:W8000'),
-      readRows(api, 'Data!A8001:W13000'),
-      readRows(api, 'Target_List!A:K'),
-      readRows(api, 'Data!A:A'),
-      readRows(api, 'Data!B:B'),
+    const [dataRows, targetRows] = await Promise.all([
+      readRows(api, 'Data!A1:W13000'),
+      readRows(api, 'Target_List!A1:K3000'),
     ]);
 
-    const dataRows = [...batch1, ...batch2, ...batch3];
-    const header   = dataRows[0] || [];
+    const header = dataRows[0] || [];
+    const idx = name => header.indexOf(name);
+    const yearIdx = idx('Year'), monthIdx = idx('Month'), statusIdx = idx('Status'), premIdx = idx('Premium'),
+          agentIdx = idx('Agent'), repIdx = idx('Repitched By'), overIdx = idx('Overturned By'),
+          teamIdx = idx('Team'), cityIdx = idx('City'), officeIdx = idx('Office');
 
-    const sales   = [];
-    const verRows = [];
+    const tHeader = targetRows[0] || [];
+    const tIdx = name => tHeader.indexOf(name);
+    const tAgentIdx = tIdx('Agent'), tMonthIdx = tIdx('Month'), tYearIdx = tIdx('Year'),
+          tTeamIdx = tIdx('Team'), tTargetIdx = tIdx('Target');
 
-    for(let i=1; i<dataRows.length; i++){
-      const r = dataRows[i];
-      if(!r||r.length<7) continue;
+    // Years/months available for the filter dropdowns (whole dataset, not period-filtered)
+    const years = [...new Set(dataRows.slice(1).map(r => r && toYear(r[yearIdx])).filter(Boolean))].sort();
+    const months = [...new Set(dataRows.slice(1).map(r => r && str(r[monthIdx])).filter(Boolean))];
 
-      const year  = toYear(r[0]);
-      const month = str(r[1]);
-
-      if(filterYear  && year  !== filterYear)  continue;
-      if(filterMonth && month !== filterMonth) continue;
-
-      const status   = normStatus(r[6]);
-      if(!status) continue;
-
-      const agent    = normName(r[11]||'');
-      const verifier = normName(r[12]||'');
-      const saver    = normName(r[13]||'');
-
-      if(agent && status!=='Payment Fail' && status!=='Cancelled'){
-        sales.push({
-          year, month, status,
-          premium:  num(r[8]),
-          office:   str(r[10]),
-          agent, verifier, saver,
-          portal:   str(r[15]||''),
-          city:     str(r[22]||''),
-        });
-      }
-      if(verifier||saver){
-        verRows.push({year,month,status,verifier,saver});
-      }
+    if (!filterYear || !filterMonth) {
+      return NextResponse.json({ years, months, agents: [], verifiers: [], managerBonusEarned: false });
     }
 
-    // Targets
-    const targets = [];
-    for(let i=1; i<targetData.length; i++){
-      const r = targetData[i];
-      if(!r) continue;
-      const rawAgent = str(r[0]);
-      if(!rawAgent||/\bUAG\s*$/i.test(rawAgent)) continue;
-      const target = num(r[5]);
-      if(target<=0) continue;
-      const tYear  = toYear(r[9]);
-      const tMonth = str(r[1]);
-      if(filterYear  && tYear  && tYear  !== filterYear)  continue;
-      if(filterMonth && tMonth && tMonth !== filterMonth) continue;
-      targets.push({
-        agent:  normName(rawAgent),
-        month:  tMonth, office: str(r[2]),
-        team:   str(r[3]), target,
-        city:   str(r[7]), year: tYear,
+    const rows = dataRows.slice(1).filter(r => r && str(r[yearIdx]) === filterYear && str(r[monthIdx]) === filterMonth);
+    const targets = targetRows.slice(1).filter(r => r && str(r[tYearIdx]) === filterYear && str(r[tMonthIdx]) === filterMonth);
+
+    // --- per-agent revenue, city/team metadata ---
+    const agentRevenue = {}, agentCity = {}, agentTeam = {};
+    for (const r of rows) {
+      const status = normStatus(r[statusIdx]);
+      const agent = normName(r[agentIdx]);
+      if (!agent) continue;
+      if (!agentCity[agent]) agentCity[agent] = str(r[cityIdx]) || str(r[officeIdx]);
+      if (!agentTeam[agent]) agentTeam[agent] = str(r[teamIdx]);
+      if (!REVENUE_STATUSES.includes(status)) continue;
+      agentRevenue[agent] = (agentRevenue[agent] || 0) + num(r[premIdx]);
+    }
+
+    // --- per-agent target (max across duplicate/UAG rows, not summed) ---
+    const agentTarget = {};
+    for (const t of targets) {
+      const agent = normName(t[tAgentIdx]);
+      if (!agent) continue;
+      agentTarget[agent] = Math.max(agentTarget[agent] || 0, num(t[tTargetIdx]));
+      if (!agentTeam[agent]) agentTeam[agent] = str(t[tTeamIdx]);
+    }
+
+    // --- manager bonus: combined Agadir Upsellers + Tangier Upsellers team vs combined target ---
+    let teamActual = 0, teamTarget2 = 0;
+    for (const r of rows) {
+      const status = normStatus(r[statusIdx]);
+      if (!REVENUE_STATUSES.includes(status)) continue;
+      if (MANAGER_TEAMS.includes(str(r[teamIdx]).toLowerCase())) teamActual += num(r[premIdx]);
+    }
+    for (const t of targets) {
+      if (MANAGER_TEAMS.includes(str(t[tTeamIdx]).toLowerCase())) teamTarget2 += num(t[tTargetIdx]);
+    }
+    const managerBonusEarned = teamTarget2 > 0 && teamActual >= teamTarget2;
+    const managerCommissionAmount = managerBonusEarned ? MANAGER_BONUS_MAD : 0;
+
+    // --- agent commission table ---
+    const allAgentNames = new Set([...Object.keys(agentRevenue), ...Object.keys(agentTarget)]);
+    const agents = [];
+    for (const agent of allAgentNames) {
+      if (isHiddenAgent(agent)) continue;
+      const revenue = agentRevenue[agent] || 0;
+      const target = agentTarget[agent] || 0;
+      const reachedPct = target > 0 ? (revenue / target) * 100 : null;
+      let commission = 0;
+      if (reachedPct !== null && revenue > 0) {
+        const rate = reachedPct >= 200 ? 0.05 : reachedPct >= 150 ? 0.04 : 0.03;
+        commission = revenue * rate * FX_RATE;
+      }
+      const managerCommission = agent === MANAGER_NAME ? managerCommissionAmount : 0;
+      agents.push({
+        agent, city: agentCity[agent] || '', team: agentTeam[agent] || '',
+        revenue, target, reachedPct, commission, managerCommission,
+        total: commission + managerCommission,
+        isManager: agent === MANAGER_NAME,
       });
     }
+    agents.sort((a, b) => b.revenue - a.revenue);
 
-    // Available years/months
-    const years  = [...new Set((periodsA[0]||[]).slice(1).map(toYear).filter(Boolean))].sort();
-    const months = [...new Set((periodsB[0]||[]).slice(1).map(v=>str(v)).filter(Boolean))];
+    // --- repitch / overturn bonuses (net successes minus reversals, floored at 0) ---
+    const repitchNet = {}, overturnNet = {};
+    for (const r of rows) {
+      const status = normStatus(r[statusIdx]);
+      const rep = normName(r[repIdx]);
+      const over = normName(r[overIdx]);
+      if (SUCCESS_STATUSES.includes(status)) {
+        if (rep) repitchNet[rep] = (repitchNet[rep] || 0) + 1;
+        if (over) overturnNet[over] = (overturnNet[over] || 0) + 1;
+      } else if (REVERSAL_STATUSES.includes(status)) {
+        if (rep) repitchNet[rep] = (repitchNet[rep] || 0) - 1;
+        if (over) overturnNet[over] = (overturnNet[over] || 0) - 1;
+      }
+    }
+    const repitchBonus = {}, overturnBonus = {};
+    for (const [name, n] of Object.entries(repitchNet)) repitchBonus[name] = Math.max(n, 0) * REPITCH_RATE_MAD;
+    for (const [name, n] of Object.entries(overturnNet)) overturnBonus[name] = Math.max(n, 0) * OVERTURN_RATE_MAD;
 
-    return NextResponse.json({
-      sales, targets, verRows, years, months,
-      debugInfo:{
-        totalSales:   sales.length,
-        totalVerRows: verRows.length,
-        totalTargets: targets.length,
-        totalDataRows: dataRows.length,
-        filterYear, filterMonth,
-        sampleMay2026Abdelouahab: filterYear==='2026'&&filterMonth==='05.May'
-          ? sales.filter(s=>s.agent.toLowerCase().includes('abdelouahab')&&['Paid','SFDP','Charge Back','Admin Refund','Manual Refund'].includes(s.status))
-              .reduce((a,s)=>({count:a.count+1,total:a.total+s.premium}),{count:0,total:0})
-          : null,
-      },
-    });
+    // --- verifier net revenue, for Top Performer ranking ---
+    const verifierRevenue = {};
+    for (const r of rows) {
+      const status = normStatus(r[statusIdx]);
+      if (!REVENUE_STATUSES.includes(status)) continue;
+      const amount = num(r[premIdx]);
+      const names = new Set([normName(r[repIdx]), normName(r[overIdx])].filter(Boolean));
+      for (const n of names) verifierRevenue[n] = (verifierRevenue[n] || 0) + amount;
+    }
+    const topEntry = Object.entries(verifierRevenue).sort((a, b) => b[1] - a[1])[0];
+    const topName = topEntry ? topEntry[0] : null;
 
-  } catch(err) {
+    const allVerifierNames = new Set([...Object.keys(repitchBonus), ...Object.keys(overturnBonus)]);
+    const verifiers = [];
+    for (const name of allVerifierNames) {
+      const repitch = repitchBonus[name] || 0;
+      const overturn = overturnBonus[name] || 0;
+      const topPerformerBonus = name === topName ? TOP_PERFORMER_BONUS_MAD : 0;
+      const total = repitch + overturn + topPerformerBonus;
+      if (total === 0) continue;
+      verifiers.push({ name, repitch, overturn, topPerformerBonus, total });
+    }
+    verifiers.sort((a, b) => b.total - a.total);
+
+    return NextResponse.json({ years, months, agents, verifiers, managerBonusEarned });
+
+  } catch (err) {
     console.error('API Error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
