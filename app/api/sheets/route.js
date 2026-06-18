@@ -89,6 +89,20 @@ export async function GET(request) {
         city: str(r[cityIdx] || ''),
       });
     }
+    const verifierRows = [];
+    for (const r of dataRows.slice(1)) {
+      if (!r) continue;
+      const year = toYear(r[yearIdx]);
+      const month = str(r[monthIdx]);
+      if (filterYear && year !== filterYear) continue;
+      if (filterMonth && month !== filterMonth) continue;
+      const status = canonicalStatus(r[statusIdx]);
+      if (!status) continue;
+      const repitchedBy = normName(r[repIdx]);
+      const overturnedBy = normName(r[overIdx]);
+      if (!repitchedBy && !overturnedBy) continue;
+      verifierRows.push({ year, month, status, premium: num(r[premIdx]), repitchedBy, overturnedBy });
+    }
     const allTargets = [];
     for (const t of targetRows.slice(1)) {
       if (!t) continue;
@@ -109,7 +123,7 @@ export async function GET(request) {
     }
 
     if (!filterYear || !filterMonth) {
-      return NextResponse.json({ years, months, sales, targets: allTargets, agents: [], verifiers: [], managerBonusEarned: false });
+      return NextResponse.json({ years, months, sales, targets: allTargets, verifierRows, agents: [], verifiers: [], managerBonusEarned: false });
     }
 
     const rows = dataRows.slice(1).filter(r => r && str(r[yearIdx]) === filterYear && str(r[monthIdx]) === filterMonth);
@@ -214,7 +228,7 @@ export async function GET(request) {
     }
     verifiers.sort((a, b) => b.total - a.total);
 
-    return NextResponse.json({ years, months, sales, targets: allTargets, agents, verifiers, managerBonusEarned });
+    return NextResponse.json({ years, months, sales, targets: allTargets, verifierRows, agents, verifiers, managerBonusEarned });
 
   } catch (err) {
     console.error('API Error:', err.message);

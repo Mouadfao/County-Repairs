@@ -18,6 +18,9 @@ const isSFDP    = r => r.status === 'SFDP';
 const isNeg     = r => ['Charge Back','Admin Refund','Manual Refund'].includes(r.status);
 const isHidden  = name => /office|manager|claim\s*fee/i.test(name);
 
+const SUCCESS_STATUSES  = ['Paid','SFDP','Scheduled'];
+const REVERSAL_STATUSES = ['Charge Back','Admin Refund','Manual Refund'];
+
 const SERIF = "'IBM Plex Serif', Georgia, serif";
 const SANS  = "'Inter', system-ui, sans-serif";
 const BG    = '#f4f0eb';
@@ -26,7 +29,7 @@ const card = { background:'#fff', borderRadius:16, padding:'20px 24px', boxShado
 const bOpts = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } };
 
 export default function StatsPage() {
-  const [raw,     setRaw]     = useState({ sales:[], targets:[], debugInfo:{} });
+  const [raw,     setRaw]     = useState({ sales:[], targets:[], verifierRows:[] });
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
   const [updated, setUpdated] = useState('');
@@ -45,8 +48,10 @@ export default function StatsPage() {
       .catch(() => {});
   }, []);
 
+  const isAdmin                = userRole === 'admin' || userRole === 'super_admin';
   const isUpsellersManager    = userRole === 'upsellers_manager';
   const isVerificationManager = userRole === 'verification_manager';
+  const showVerifierTable     = isAdmin || isVerificationManager;
 
   async function load() {
     setLoading(true); setError('');
@@ -60,7 +65,7 @@ export default function StatsPage() {
   }
   useEffect(()=>{ load(); },[]);
 
-  const { sales, targets } = raw;
+  const { sales, targets, verifierRows = [] } = raw;
 
   // ── filter options ─────────────────────────────────────────────────────
   const years  = useMemo(()=>[...new Set(sales.map(r=>r.year).filter(Boolean))].sort().reverse(),[sales]);
@@ -165,6 +170,32 @@ export default function StatsPage() {
     return {...a,target:tgt,pct:tgt>0?Math.round(a.net/tgt*100):null};
   }).sort((a,b)=>b.net-a.net);
 
+  // ── verifiers performance ──────────────────────────────────────────────
+  const filteredVerifierRows = useMemo(()=>verifierRows.filter(r=>
+    (fYear==='All'||r.year===fYear) && (fMonth==='All'||r.month===fMonth)
+  ),[verifierRows,fYear,fMonth]);
+
+  const verifierMap = {};
+  filteredVerifierRows.forEach(r=>{
+    const isSuccess  = SUCCESS_STATUSES.includes(r.status);
+    const isReversal = REVERSAL_STATUSES.includes(r.status);
+    const delta = isSuccess ? 1 : isReversal ? -1 : 0;
+    const revDelta = (isSuccess||isReversal) ? r.premium : 0;
+    if (r.repitchedBy) {
+      const v = verifierMap[r.repitchedBy] ??= { name:r.repitchedBy, repitched:0, overturned:0, netRevenue:0 };
+      v.repitched += delta; v.netRevenue += revDelta;
+    }
+    if (r.overturnedBy) {
+      const v = verifierMap[r.overturnedBy] ??= { name:r.overturnedBy, repitched:0, overturned:0, netRevenue:0 };
+      v.overturned += delta;
+      if (!r.repitchedBy || r.repitchedBy !== r.overturnedBy) v.netRevenue += revDelta;
+    }
+  });
+  const verifierPerf = Object.values(verifierMap)
+    .map(v=>({ ...v, repitched:Math.max(v.repitched,0), overturned:Math.max(v.overturned,0) }))
+    .filter(v=>v.repitched>0||v.overturned>0||v.netRevenue!==0)
+    .sort((a,b)=>b.netRevenue-a.netRevenue);
+
   // ── office breakdown ───────────────────────────────────────────────────
   const offMap={};
   filtered.filter(countsRev).forEach(r=>{ const k=(r.city||r.office||'?').trim(); offMap[k]=(offMap[k]||0)+r.premium; });
@@ -236,7 +267,6 @@ export default function StatsPage() {
         {/* PREDICTION */}
         {prediction!==null&&(
           <div style={{...card,marginBottom:14,borderLeft:`4px solid ${C.purple}`,display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-            <div style={{fontSize:28}}>🔮</div>
             <div style={{flex:1}}>
               <div style={{fontSize:10,color:'#94a3b8',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em'}}>End-of-month projection — {shortM(currentMonth)}</div>
               <div style={{fontSize:20,fontWeight:800,color:C.purple,marginTop:2}}>
@@ -352,7 +382,7 @@ export default function StatsPage() {
 
         {/* LEADERBOARD */}
         <div style={card}>
-          <div style={{fontFamily:SERIF,fontSize:17,fontWeight:400,color:'#0c1018',letterSpacing:'-0.34px',marginBottom:4}}>🏆 Top 10 Leaderboard</div>
+          <div style={{fontFamily:SERIF,fontSize:17,fontWeight:400,color:'#0c1018',letterSpacing:'-0.34px',marginBottom:4}}>Top 10 Leaderboard</div>
           <div style={{fontSize:11,color:'#9e9fa3',letterSpacing:'-0.11px',marginBottom:12}}>Ranked by net revenue. Colour = target % (green ≥100%, amber ≥70%, red below).</div>
           <div style={{display:'flex',flexDirection:'column',gap:7}}>
             {agentPerf.slice(0,10).map((a,i)=>{
@@ -361,7 +391,7 @@ export default function StatsPage() {
               const bc=a.pct===null?C.blue:a.pct>=100?C.green:a.pct>=70?C.amber:C.red;
               return (
                 <div key={a.agent} style={{display:'flex',alignItems:'center',gap:10}}>
-                  <div style={{width:24,textAlign:'center',fontSize:14,flexShrink:0}}>{['🥇','🥈','🥉'][i]||<span style={{color:'#94a3b8',fontSize:12}}>{i+1}</span>}</div>
+                  <div style={{width:24,textAlign:'center',fontSize:12,fontWeight:700,color:i<3?C.blue:'#94a3b8',flexShrink:0}}>{i+1}</div>
                   <div style={{width:160,fontSize:12,fontWeight:500,color:'#1e293b',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flexShrink:0}}>{a.agent}</div>
                   <div style={{flex:1,height:18,background:'#f1f5f9',borderRadius:4,overflow:'hidden'}}>
                     <div style={{height:'100%',width:barW+'%',background:bc+'cc',borderRadius:4}}/>
@@ -373,6 +403,37 @@ export default function StatsPage() {
             })}
           </div>
         </div>
+
+        {/* VERIFIERS PERFORMANCE */}
+        {showVerifierTable && (
+          <div style={{...card,marginTop:14}}>
+            <div style={{fontFamily:SERIF,fontSize:17,fontWeight:400,color:'#0c1018',letterSpacing:'-0.34px',marginBottom:3}}>Verifiers Performance</div>
+            <div style={{fontSize:11,color:'#9e9fa3',letterSpacing:'-0.11px',marginBottom:10}}>Repitched/Overturned counts are net of later refunds or chargebacks. Net Revenue Influenced sums premium across rows where the verifier appears.</div>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                <thead>
+                  <tr style={{background:'#F8FAFC',borderBottom:'2px solid #e2e8f0'}}>
+                    {['#','Verifier','Overturned','Repitched','Net Revenue Influenced'].map(h=>(
+                      <th key={h} style={{padding:'9px 12px',textAlign:'left',color:'#9e9fa3',fontWeight:500,whiteSpace:'nowrap',fontSize:10,textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid rgba(153,161,175,.15)',background:'rgba(153,161,175,.04)'}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {verifierPerf.length===0 && <tr><td colSpan={5} style={{padding:20,textAlign:'center',color:'#94a3b8',fontSize:13}}>No verification data for this period</td></tr>}
+                  {verifierPerf.map((v,i)=>(
+                    <tr key={v.name} style={{background:'#fff',borderBottom:'1px solid rgba(153,161,175,.1)'}}>
+                      <td style={{padding:'9px 12px',color:'#9e9fa3',fontWeight:400,fontSize:12}}>{i+1}</td>
+                      <td style={{padding:'9px 12px',fontWeight:500,color:'#0c1018',fontSize:13}}>{v.name}</td>
+                      <td style={{padding:'7px 10px',color:C.teal,fontWeight:600}}>{v.overturned}</td>
+                      <td style={{padding:'7px 10px',color:C.blue,fontWeight:600}}>{v.repitched}</td>
+                      <td style={{padding:'7px 10px',fontWeight:700,color:v.netRevenue>=0?C.green:C.red}}>{fmt(v.netRevenue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         </>)}
       </div>
