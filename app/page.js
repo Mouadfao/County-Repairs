@@ -18,8 +18,7 @@ export default function Home() {
   }, []);
 
   const isSuperAdmin = userRole==='super_admin';
-  const isVerificationManager = userRole==='verification_manager';
-  const showStats = !isVerificationManager;
+  const showStats = true;
   const showUsers = isSuperAdmin;
 
   async function logout() {

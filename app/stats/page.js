@@ -233,8 +233,10 @@ export default function StatsPage() {
           {[
             {label:'Year', val:fYear, set:setFYear, opts:['All',...years]},
             {label:'Month',val:fMonth,set:setFMonth,opts:['All',...months],display:['All',...months.map(shortM)]},
-            {label:'City', val:fCity, set:setFCity, opts:['All',...cities]},
-            {label:'Agent',val:fAgent,set:setFAgent,opts:['All',...(allowedAgents?agents.filter(a=>allowedAgents.has(a)):agents)]},
+            ...(isVerificationManager ? [] : [
+              {label:'City', val:fCity, set:setFCity, opts:['All',...cities]},
+              {label:'Agent',val:fAgent,set:setFAgent,opts:['All',...(allowedAgents?agents.filter(a=>allowedAgents.has(a)):agents)]},
+            ]),
           ].map(({label,val,set,opts,display})=>(
             <label key={label} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'#9e9fa3',fontWeight:500,letterSpacing:'0.04em',textTransform:'uppercase'}}>
               {label}
@@ -243,8 +245,10 @@ export default function StatsPage() {
               </select>
             </label>
           ))}
-          <div style={{marginLeft:'auto',fontSize:11,color:'#94a3b8'}}>{filtered.filter(countsRev).length.toLocaleString()} revenue records</div>
+          {!isVerificationManager && <div style={{marginLeft:'auto',fontSize:11,color:'#94a3b8'}}>{filtered.filter(countsRev).length.toLocaleString()} revenue records</div>}
         </div>
+
+        {!isVerificationManager && (<>
 
         {/* KPI CARDS */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,marginBottom:14}}>
@@ -403,6 +407,8 @@ export default function StatsPage() {
             })}
           </div>
         </div>
+
+        </>)}
 
         {/* VERIFIERS PERFORMANCE */}
         {showVerifierTable && (
